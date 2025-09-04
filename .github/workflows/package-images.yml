@@ -1,0 +1,35 @@
+name: Package Images 
+
+on:
+  workflow_dispatch:
+
+jobs:
+  pull_and_package:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: anythingllm
+            image: mintplexlabs/anythingllm:latest
+          - name: qdrant
+            image: qdrant/qdrant:latest
+          - name: postgres16   # 若用 PG/pgvector 才需要；否则可删
+            image: postgres:16
+          - name: redis        # 可选
+            image: redis:7
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pull image
+        run: docker pull ${{ matrix.image }}
+      - name: Save to tar.gz and split
+        run: |
+          SAFE=${{ matrix.name }}
+          mkdir -p out/$SAFE
+          docker save ${{ matrix.image }} | gzip -1 > out/$SAFE/$SAFE.tar.gz
+          split -b 1900m out/$SAFE/$SAFE.tar.gz out/$SAFE/$SAFE.tar.gz.part-
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}-tar-parts
+          path: out/${{ matrix.name }}/*
+          retention-days: 14
