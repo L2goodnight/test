@@ -25,7 +25,7 @@ jobs:
 
       - name: Clone target repo
         run: |
-          git clone --depth=1 --branch "${{ github.event.inputs.ref }}" "${{ github.event.inputs.repo }}" src
+          git clone --depth=1 "${{ github.event.inputs.ref }}" "${{ github.event.inputs.repo }}" src
           ls -la src
 
       - name: Build docker image
