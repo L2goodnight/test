@@ -1,0 +1,50 @@
+name: Build From Source -> Package
+
+on:
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: "Git repo URL (e.g. https://github.com/Mintplex-Labs/anything-llm.git)"
+        required: true
+        default: "https://github.com/Mintplex-Labs/anything-llm.git"
+      ref:
+        description: "Git ref (branch/tag/commit)"
+        required: false
+        default: "main"
+      image_name:
+        description: "Local image name:tag"
+        required: false
+        default: "anythingllm:source-build"
+
+jobs:
+  build_save:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout placeholder
+        uses: actions/checkout@v4
+
+      - name: Clone target repo
+        run: |
+          git clone --depth=1 --branch "${{ github.event.inputs.ref }}" "${{ github.event.inputs.repo }}" src
+          ls -la src
+
+      - name: Build docker image
+        run: |
+          cd src
+          # 假设仓库根目录有 Dockerfile；若路径不同请调整
+          docker build -t "${{ github.event.inputs.image_name }}" .
+
+      - name: Save to tar.gz and split
+        run: |
+          SAFE="$(echo "${{ github.event.inputs.image_name }}" | tr '/:' '__')"
+          mkdir -p out/"$SAFE"
+          docker save "${{ github.event.inputs.image_name }}" | gzip -1 > "out/$SAFE/$SAFE.tar.gz"
+          split -b 1900m "out/$SAFE/$SAFE.tar.gz" "out/$SAFE/$SAFE.tar.gz.part-"
+          ls -lh "out/$SAFE"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-build-${{ github.event.inputs.image_name }}
+          path: out/**/*
+          retention-days: 14
